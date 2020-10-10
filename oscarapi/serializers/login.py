@@ -1,4 +1,6 @@
-from django.contrib.auth import get_user_model, authenticate
+from django.core.exceptions import ValidationError
+
+from django.contrib.auth import get_user_model, authenticate, password_validation
 from rest_framework import serializers
 
 from oscarapi.utils.settings import overridable
@@ -27,7 +29,11 @@ class LoginSerializer(serializers.Serializer):
     username = serializers.CharField(
         max_length=field_length(User.USERNAME_FIELD), required=True
     )
-    password = serializers.CharField(max_length=field_length("password"), required=True)
+    password = serializers.CharField(
+        max_length=field_length("password"),
+        required=True,
+        style={"input_type": "password"},
+    )
 
     def validate(self, attrs):
         user = authenticate(username=attrs["username"], password=attrs["password"])
@@ -39,3 +45,36 @@ class LoginSerializer(serializers.Serializer):
         # set instance to the user so we can use this in the view
         self.instance = user
         return attrs
+
+
+class RgisterUserSerializer(serializers.Serializer):
+    email = serializers.EmailField(max_length=field_length("email"), required=True)
+    password1 = serializers.CharField(
+        max_length=field_length("password"),
+        required=True,
+        style={"input_type": "password"},
+    )
+    password2 = serializers.CharField(
+        max_length=field_length("password"),
+        required=True,
+        style={"input_type": "password"},
+    )
+
+    def validate(self, attrs):
+        if User.objects.filter(email=attrs["email"]).exists():
+            raise serializers.ValidationError("User already exists")
+
+        if attrs["password1"] != attrs["password2"]:
+            raise serializers.ValidationError("Passwords do not match")
+
+        try:
+            password_validation.validate_password(attrs["password1"])
+        except ValidationError as e:
+            raise serializers.ValidationError(str(e))
+
+        return attrs
+
+    def save(self):
+        email = self.validated_data["email"]
+        password = self.validated_data["password1"]
+        return User.objects.create_user(username=email, email=email, password=password)
