@@ -15,6 +15,8 @@ DATABASES = {
 
 DEBUG = True
 
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
 HAYSTACK_CONNECTIONS = {
     'default': {
         'ENGINE': '',
